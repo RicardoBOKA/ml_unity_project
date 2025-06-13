@@ -15,6 +15,7 @@ public class ArmController : MonoBehaviour
     public Transform bone8;
     public Transform pincer1; // position X [0.005, 0.008]
     public Transform pincer2; // position X [-0.008, -0.005]
+    public Transform environment; // Transform de l'environnement pour les positions locales
 
     // Angles de départ de chaque articulation + pinces
     private Quaternion bone1InitialRotation;
@@ -48,7 +49,7 @@ public class ArmController : MonoBehaviour
     //Parties à decommenter si on veut que les pinces s'arretent lors du contact du cube (évite que les pinces s'enfoncent dans le cube)
     private bool pincer1Blocked = false;
     private bool pincer2Blocked = false;
-    
+
     // public CubeRandomSpawner cubeRandomSpawner;
 
     void Start()
@@ -58,7 +59,9 @@ public class ArmController : MonoBehaviour
     }
 
 
-    public void resetArm(){;
+    public void resetArm()
+    {
+        ;
         Vector3 bone2Pos = bone2.localPosition;
         bone2Pos.z = 0f;
         bone2.localPosition = bone2Pos;
@@ -87,10 +90,14 @@ public class ArmController : MonoBehaviour
     }
 
 
-    public void moveBone1(bool forward) {
-        if (forward) {
+    public void moveBone1(bool forward)
+    {
+        if (forward)
+        {
             bone1.Rotate(0f, rotationSpeed * Time.deltaTime, 0f);
-        } else {
+        }
+        else
+        {
             bone1.Rotate(0f, -rotationSpeed * Time.deltaTime, 0f);
         }
     }
@@ -158,8 +165,8 @@ public class ArmController : MonoBehaviour
     void Update()
     {
         // Contrôle de Bone.001 - Rotation sur Y
-        if (Input.GetKey("a")){moveBone1(true);}
-        if (Input.GetKey("e")){moveBone1(false);}
+        if (Input.GetKey("a")) { moveBone1(true); }
+        if (Input.GetKey("e")) { moveBone1(false); }
 
         // Contrôle de Bone.002 - Position sur Z ### On la néglige pour l'entrainement 
         // --- Bone2 (translation Z)
@@ -174,7 +181,7 @@ public class ArmController : MonoBehaviour
         // todo: ajouter la rotation de bone5
 
         // Bone.004 - Rotation X [-150, 150]
-         // --- Bone4 (rotation X)
+        // --- Bone4 (rotation X)
         if (Input.GetKey("f")) RotateBone4(false);
         if (Input.GetKey("g")) RotateBone4(true);
 
@@ -184,14 +191,15 @@ public class ArmController : MonoBehaviour
 
         // Bone.007 - Rotation Y [-60, 60]
         if (Input.GetKey("b")) RotateBone7(false);
-        if (Input.GetKey("n")) RotateBone7(true); 
+        if (Input.GetKey("n")) RotateBone7(true);
 
         // Pince - Position X [0.005, 0.008]
         //fermer la pince (les deux s’approchent)
         if (Input.GetKey("u")) ControlPincers(true);
-        if (Input.GetKey("i")) ControlPincers(false); 
+        if (Input.GetKey("i")) ControlPincers(false);
 
-        if (Input.GetKey("space")){
+        if (Input.GetKey("space"))
+        {
             resetArm();
         }
 
@@ -216,7 +224,8 @@ public class ArmController : MonoBehaviour
     ///     - Le minuteur de libération est réinitialisé à 0.
     /// </remarks>
     /// <seealso cref="ReleaseBox"/>
-    void FixedUpdate() {
+    void FixedUpdate()
+    {
         if (isHoldingBox && boxRigidbody != null)
         {
             if (!leftArmContact || !rightArmContact)
@@ -249,7 +258,8 @@ public class ArmController : MonoBehaviour
     /// en utilisant la pince par défaut. Si une méthode alternative est activée, elle permet de saisir avec un seul bras
     /// (gauche ou droit) en fonction du bras en contact.
     /// </remarks>>
-    public void OnArmContact(bool isLeftArm, bool isContacting, Rigidbody boxRb) {
+    public void OnArmContact(bool isLeftArm, bool isContacting, Rigidbody boxRb)
+    {
         if (isLeftArm)
             leftArmContact = isContacting;
         else
@@ -315,13 +325,13 @@ public class ArmController : MonoBehaviour
     }
 
     /// <summary>
-        /// Libère la boîte actuellement tenue en désactivant son état cinématique, en activant la gravité,
-        /// et en détruisant le joint utilisé pour la maintenir. Réinitialise les variables associées pour indiquer
+    /// Libère la boîte actuellement tenue en désactivant son état cinématique, en activant la gravité,
+    /// et en détruisant le joint utilisé pour la maintenir. Réinitialise les variables associées pour indiquer
     /// que la boîte n'est plus tenue.
     /// </summary>
     /// <remarks>
-        /// Cette méthode est généralement appelée lorsque l'utilisateur ou le système décide de lâcher la boîte.
-        /// Elle garantit que la boîte se comporte naturellement sous la simulation physique après avoir été relâchée.
+    /// Cette méthode est généralement appelée lorsque l'utilisateur ou le système décide de lâcher la boîte.
+    /// Elle garantit que la boîte se comporte naturellement sous la simulation physique après avoir été relâchée.
     /// </remarks>
     void ReleaseBox()
     {
@@ -376,7 +386,8 @@ public class ArmController : MonoBehaviour
     {
         return new Vector3(pincer1PosX, 0, pincer2PosX);
     }
-    public bool getIsHoldingBox() {
+    public bool getIsHoldingBox()
+    {
         return isHoldingBox;
     }
     //Position des pinces
@@ -405,6 +416,15 @@ public class ArmController : MonoBehaviour
         };
     }
 
+    public Vector3[] GetPincerLocalPositions_Env(Transform environment)
+    {
+        return new Vector3[] {
+            environment.InverseTransformPoint(pincer1.position),
+            environment.InverseTransformPoint(pincer2.position),
+            // new Vector3(pincer1.localPosition.x - 0.6f, pincer1.localPosition.y, pincer1.localPosition.z),
+            // new Vector3(pincer2.localPosition.x - 0.6f, pincer2.localPosition.y, pincer2.localPosition.z)
+        };
+    }
     public Vector3 GetPincer2Positions()
     {
         return armRoot.InverseTransformPoint(pincer2.position);
@@ -465,5 +485,9 @@ public class ArmController : MonoBehaviour
     bool getRightArmContact()
     {
         return rightArmContact;
+    }
+    public Transform GetEnvironmentTransform()
+    {
+        return environment;
     }
 }

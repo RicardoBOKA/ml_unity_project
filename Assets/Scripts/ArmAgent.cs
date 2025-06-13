@@ -22,6 +22,8 @@ public class ArmAgent : Agent
     // private int _maxEpisodes = 1000; // Nombre d'épisodes maximum
     [HideInInspector] public float CumulativeReward = 0f; // Récompense cumulée pour l'épisode en cours
     private Color _defaultMaterial;
+    private float timeTouchingPlane = 0f;
+    private float maxTouchTime = 5f; // ou une autre valeur selon tes essais
 
 
 
@@ -43,14 +45,22 @@ public class ArmAgent : Agent
         CumulativeReward = 0f;
         _defaultMaterial = _renderer.material.color;
 
-        if (_grabDetectorLeft != null) {
+        if (_grabDetectorLeft != null)
+        {
             _grabDetectorLeft.ResetTouchState();
         }
-        if (_grabDetectorRight != null) {
+        if (_grabDetectorRight != null)
+        {
             _grabDetectorRight.ResetTouchState();
         }
 
         SpawnObjects();
+
+        // Reinitialize the distance tracking so that the first reward
+        // of the episode is computed from the current cube position
+        // and not from the previous episode's state.
+        Vector3 pincerCenter = (_armController.GetPincerPositions()[0] + _armController.GetPincerPositions()[1]) / 2f;
+        _previousDistanceToCube = Vector3.Distance(pincerCenter, _goal.getPosition());
     }
 
     private void SpawnObjects()
@@ -67,11 +77,11 @@ public class ArmAgent : Agent
     public override void CollectObservations(VectorSensor sensor)
     {
         float maxDist = 23f;
-        // --- Position du cube normalisée (-9 à 9)
-        float goalPosX = _goal.getLocalPosX() / 8f; // Normalisation de la position du cube (9 car dans CubeRandomSpawner la range d'apparition est de 9f)
-        float goalPosZ = _goal.getLocalPosZ() / 8f; // Normalisation de la position du cube
-        sensor.AddObservation(goalPosX); // Position du cube sur l'axe X
-        sensor.AddObservation(goalPosZ); // Position du cube sur l'axe Z
+        // --- Position du cube normalisée (-8 à 8)
+        float goalPosX = _goal.GetLocalPosX() / 8f; // Normalisation de la position du cube (9 car dans CubeRandomSpawner la range d'apparition est de 9f)
+        float goalPosZ = _goal.GetLocalPosZ() / 8f; // Normalisation de la position du cube
+        sensor.AddObservation(goalPosX);            // Position du cube sur l'axe X
+        sensor.AddObservation(goalPosZ);            // Position du cube sur l'axe Z
 
         //Informations sur les angles des articulations du bras
 
@@ -96,19 +106,40 @@ public class ArmAgent : Agent
         // sensor.AddObservation(bone7Norm); pas sur
 
         // --- A quel point les pinces sont rapprochées (normalisée) je suis pas sur de la pertinence 
-        Vector3 pincers = _armController.GetPincerHold();
-        float pincer1Norm = Mathf.InverseLerp(0.005f, 0.008f, pincers.x);
-        float pincer2Norm = Mathf.InverseLerp(-0.008f, -0.005f, pincers.z);
-        sensor.AddObservation(pincer1Norm);
-        sensor.AddObservation(pincer2Norm);
+        // Vector3 pincers = _armController.GetPincerHold();
+        // float pincer1Norm = Mathf.InverseLerp(0.005f, 0.008f, pincers.x);
+        // float pincer2Norm = Mathf.InverseLerp(-0.008f, -0.005f, pincers.z);
+        // sensor.AddObservation(pincer1Norm);
+        // sensor.AddObservation(pincer2Norm);
         // #### Distance entre la pince, les bones : 8, 7 4 et le cube
         // Vector3 goalPos = _goal.getPosition();
         float distancePincer1ToCube = Vector3.Distance(_armController.GetPincerPositions()[0], _goal.getPosition()) / maxDist; // Normalisé
         float distancePincer2ToCube = Vector3.Distance(_armController.GetPincerPositions()[1], _goal.getPosition()) / maxDist; // Normalisé
+        // Debug.Log("#############################################################");
+        // Debug.Log($"(Env {_goal.getEnvironmentName()})");
+        // Debug.Log("-----------------------------------------");
+        
+        Vector3 pincerCenterLocal = (_armController.GetPincerLocalPositions_Env(_armController.GetEnvironmentTransform())[0] + _armController.GetPincerLocalPositions_Env(_armController.GetEnvironmentTransform())[1]) / 2f;
+
+        sensor.AddObservation(pincerCenterLocal.x / 13.5f);
+        sensor.AddObservation(pincerCenterLocal.y / 11f);
+        sensor.AddObservation(pincerCenterLocal.z / 12f);
+
+        //Direction (vers ou se situe le cube) => (1,0,0) vers lavant sur l'axe x
+        Vector3 pincerCenter = (_armController.GetPincerPositions()[0] + _armController.GetPincerPositions()[1]) / 2f;
+        Vector3 directionToCube = (_goal.getPosition() - pincerCenter).normalized;
+        sensor.AddObservation(directionToCube.x);
+        sensor.AddObservation(directionToCube.z);
+
+        // Debug.Log("Localposition " + _armController.GetPincerLocalPositions_Env(_armController.GetEnvironmentTransform())[0]);
+        // Debug.Log("Localposition " + _armController.GetPincerLocalPositions_Env(_armController.GetEnvironmentTransform())[1]);
+        // Debug.Log("#############################################################");
 
         float distanceBone8ToCube = Vector3.Distance(_armController.GetBone8Position(), _goal.getPosition()) / maxDist;
         float distanceBone7ToCube = Vector3.Distance(_armController.GetBone7Position(), _goal.getPosition()) / maxDist;
-        float distanceBone4ToCube = Vector3.Distance(_armController.GetBone4Position(), _goal.getPosition()) / maxDist;
+        float distanceBone4ToCube = Vector3.Distance(_armController.GetBone4Position(), _goal.getPosition()) / (maxDist - 5f);
+        // Debug.Log($"(Env {_goal.getEnvironmentName()}) : Distances bones 8, 7 et 4 + pincers : [{distanceBone8ToCube} | {distanceBone7ToCube} | {distanceBone4ToCube} || {distancePincer1ToCube} | {distancePincer2ToCube}]");
+
 
         sensor.AddObservation(distanceBone4ToCube);
         sensor.AddObservation(distanceBone7ToCube);
@@ -122,7 +153,7 @@ public class ArmAgent : Agent
         sensor.AddObservation(isTouching ? 1f : 0f);
 
         // --- Est-ce que le cube est attrapé ?
-        sensor.AddObservation(_armController.getIsHoldingBox() ? 1f : 0f);
+        // sensor.AddObservation(_armController.getIsHoldingBox() ? 1f : 0f);
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -132,9 +163,10 @@ public class ArmAgent : Agent
 
         // ### PENALITÉS
         // --- Pénalité pour chaque pas de temps (pour encourager l'agent à agir rapidement), il pourrait juste rien faire et attendre la fin de l'épisode
-        AddReward(-1f / MaxStep);
+        AddReward(-2f / MaxStep);
         // --- Pénalité si contact avec le sol ou mur
-        PlaneTuched();
+        // PlaneTuched();
+        PlaneTouchedProgressive();
 
         // ### RÉCOMPENSES
         // --- Récompense intermédiaire : se rapprocher du cube
@@ -162,7 +194,7 @@ public class ArmAgent : Agent
         if (IsCubeTouched())
         {
             Debug.Log("TEST DEDANS");
-            AddReward(1f);
+            AddReward(15f);
             EndEpisode();
         }
     }
@@ -170,7 +202,7 @@ public class ArmAgent : Agent
     public void CenterPincerReward()
     {
         // Tolerence entre distance actuelle et distance précédente + la distance max
-        float tolerance = 0.05f;
+        float tolerance = 0.2f;
         float maxDist = 23f;
 
         // Calculer la distance entre le centre des pinces et le centre du cube
@@ -184,13 +216,13 @@ public class ArmAgent : Agent
                 // Si on se rapproche, on ajoute une récompense
                 // Debug.Log("RAPPROCHED : Distance to cube : " + distanceToCube);
                 float normalizedDistance = 1f - Mathf.Clamp01(distanceToCube / maxDist);
-                AddReward(normalizedDistance * 0.01f);
+                AddReward(normalizedDistance * 0.030f);
             }
             else if (distanceToCube > _previousDistanceToCube) {
                 // Si on s'éloigne, on ajoute une pénalité
                 // Debug.Log("ELLOIGNED : Distance to cube : " + distanceToCube);
                 float normalizedDistance = 1f - Mathf.Clamp01(distanceToCube / maxDist);
-                AddReward(-normalizedDistance * 0.1f);
+                AddReward(-normalizedDistance * 0.05f);
             } 
             _previousDistanceToCube = distanceToCube;
         }
@@ -208,10 +240,35 @@ public class ArmAgent : Agent
         // Pénalité si le bras touche le sol ou un mur
         if (redPlaneOnArmContact.GetIsTouching())
         {
-            AddReward(-1f);
+            AddReward(-0.5f);
             EndEpisode();
         }
     }
+    public void PlaneTouchedProgressive()
+    {
+        if (redPlaneOnArmContact.GetIsTouching())
+        {
+            timeTouchingPlane += Time.deltaTime;
+
+            // Petite pénalité continue
+            float penalty = -0.08f * timeTouchingPlane;
+            AddReward(penalty * Time.deltaTime);
+
+            if (timeTouchingPlane >= maxTouchTime)
+            {
+                AddReward(-1f); // ou autre pénalité finale
+                EndEpisode();
+            }
+        }
+        else
+        {
+            // AddReward(0.0005f * Time.deltaTime);
+            // Si plus en contact, on remet à zéro
+            timeTouchingPlane = 0f;
+        }
+    }
+
+
     public void GoalReached()
     {
         // Récompense si le cube est attrapé
@@ -235,23 +292,23 @@ public class ArmAgent : Agent
         // else if (actions[1] == 2) _armController.MoveBone2Z(true);
 
         // Bone3 - rotation X
-        if (actions[2] == 1) _armController.RotateBone3(true);
-        else if (actions[2] == 2) _armController.RotateBone3(false);
+        if (actions[1] == 1) _armController.RotateBone3(true);
+        else if (actions[1] == 2) _armController.RotateBone3(false);
 
         // Bone4 - rotation X
-        if (actions[3] == 1) _armController.RotateBone4(true);
-        else if (actions[3] == 2) _armController.RotateBone4(false);
+        if (actions[2] == 1) _armController.RotateBone4(true);
+        else if (actions[2] == 2) _armController.RotateBone4(false);
 
         // Bone6 - rotation X
-        if (actions[4] == 1) _armController.RotateBone6(true);
-        else if (actions[4] == 2) _armController.RotateBone6(false);
+        if (actions[3] == 1) _armController.RotateBone6(true);
+        else if (actions[3] == 2) _armController.RotateBone6(false);
 
         // Bone7 - rotation Y
-        if (actions[5] == 1) _armController.RotateBone7(false);
-        else if (actions[5] == 2) _armController.RotateBone7(true);
+        if (actions[4] == 1) _armController.RotateBone7(false);
+        else if (actions[4] == 2) _armController.RotateBone7(true);
 
         // Pinces
-        if (actions[6] == 1) _armController.ControlPincers(true);
-        else if (actions[6] == 2) _armController.ControlPincers(false);
-    }
+        if (actions[5] == 1) _armController.ControlPincers(true);
+        else if (actions[5] == 2) _armController.ControlPincers(false);
+    }    
 }

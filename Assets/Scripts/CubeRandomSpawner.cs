@@ -6,8 +6,8 @@ public class CubeRandomSpawner : MonoBehaviour
     public float rangeX = 8f;
     public float rangeZ = 8f;
 
-    public float saufZoneX = 4f;
-    public float saufZoneZ = 3f;
+    public float saufZoneX = 5f;
+    public float saufZoneZ = 5f;
 
     public float height = 0.7f;
 
@@ -38,8 +38,14 @@ public class CubeRandomSpawner : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
         {
             MoveCubeToRandomPosition();
+            // Debug.Log("Local : " + getLocalPosition());
+            // Debug.Log("Global : " + getPosition());
         }
-        
+        // Debug.Log("################################################");
+        // Debug.Log($"Environment: {cubeToMove.parent?.name}");
+        // // Debug.Log($"Position : {cubeToMove.position}");
+        // Debug.Log($"Local Position: {cubeToMove.localPosition}");
+        // Debug.Log("################################################");
         // UpdateTouchStatus();
     }
 
@@ -49,45 +55,45 @@ public class CubeRandomSpawner : MonoBehaviour
     //     Debug.Log($"isTouched: {isTouched} | contactCount: {contactCount}");
     // }
 
-//    void OnTriggerEnter(Collider other)
-//     {
-//         if (other.CompareTag("Pincers"))
-//         {
-//             contactCount++;
-//             rend.material.color = Color.green;
-//             Debug.Log("Collider entered: " + other.name + " | Total: " + contactCount);
-//         }
-//     }
+    //    void OnTriggerEnter(Collider other)
+    //     {
+    //         if (other.CompareTag("Pincers"))
+    //         {
+    //             contactCount++;
+    //             rend.material.color = Color.green;
+    //             Debug.Log("Collider entered: " + other.name + " | Total: " + contactCount);
+    //         }
+    //     }
 
-//     void OnTriggerStay(Collider other)
-//     {
-//         if (other.CompareTag("Pincers"))
-//         {
-//             // Debug.Log("Contact persistant avec le cube : " + other.name);
-//         }
-//     }
+    //     void OnTriggerStay(Collider other)
+    //     {
+    //         if (other.CompareTag("Pincers"))
+    //         {
+    //             // Debug.Log("Contact persistant avec le cube : " + other.name);
+    //         }
+    //     }
 
-//     void OnTriggerExit(Collider other)
-//     {
-//         if (other.CompareTag("Pincers"))
-//         {
-//             contactCount = Mathf.Max(0, contactCount - 1);
-//             if (contactCount == 0)
-//                 rend.material.color = defaultMaterial;
+    //     void OnTriggerExit(Collider other)
+    //     {
+    //         if (other.CompareTag("Pincers"))
+    //         {
+    //             contactCount = Mathf.Max(0, contactCount - 1);
+    //             if (contactCount == 0)
+    //                 rend.material.color = defaultMaterial;
 
-//             // Debug.Log("Fin de contact avec : " + other.name);
-//         }
-//     }
+    //             // Debug.Log("Fin de contact avec : " + other.name);
+    //         }
+    //     }
 
-//     public bool HasBeenTouched()
-//     {
-//         return isTouched;
-//     }
+    //     public bool HasBeenTouched()
+    //     {
+    //         return isTouched;
+    //     }
 
-//     public bool GetIsTouching()
-//     {
-//         return isTouched;
-//     }
+    //     public bool GetIsTouching()
+    //     {
+    //         return isTouched;
+    //     }
 
     public void MoveCubeToRandomPosition()
     {
@@ -95,7 +101,8 @@ public class CubeRandomSpawner : MonoBehaviour
         int s = 0;
         float spawnHeight = height / 2f + 0.5f; // on le lève un peu au-dessus
 
-        do {
+        do
+        {
             float randomX = Random.Range(-rangeX, rangeX);
             float randomZ = Random.Range(-rangeZ, rangeZ);
             newPos = new Vector3(randomX, spawnHeight, randomZ);
@@ -105,11 +112,11 @@ public class CubeRandomSpawner : MonoBehaviour
         cubeToMove.localPosition = newPos;
     }
 
-    public float getLocalPosX()
+    public float getPosX()
     {
         return cubeToMove.position.x;
     }
-    public float getLocalPosZ()
+    public float getPosZ()
     {
         return cubeToMove.position.z;
     }
@@ -119,4 +126,22 @@ public class CubeRandomSpawner : MonoBehaviour
         return cubeToMove.position;
     }
 
+    public float GetLocalPosX()
+    {
+        return cubeToMove.localPosition.x;
+    }
+    public float GetLocalPosZ()
+    {
+        return cubeToMove.localPosition.z;
+    }
+
+    public Vector3 getLocalPosition()
+    {
+        return cubeToMove.localPosition;
+    }
+
+        public string getEnvironmentName()
+    {
+        return cubeToMove.parent != null ? cubeToMove.parent.name : "No Parent";
+    }
 }
