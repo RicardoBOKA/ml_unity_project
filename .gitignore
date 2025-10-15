@@ -1,45 +1,189 @@
-# Unity
+# ============================================================================
+# .gitignore pour projet Unity + ML-Agents
+# Projet: Bras robotique avec apprentissage par renforcement
+# ============================================================================
+
+# ===========================
+# UNITY - Dossiers générés
+# ===========================
+
+# Cache et métadonnées Unity (plusieurs Go, régénéré automatiquement)
 [Ll]ibrary/
+
+# Fichiers temporaires de compilation
 [Tt]emp/
+
+# Artefacts de build C#
 [Oo]bj/
+
+# Exécutables compilés
 [Bb]uild/
 [Bb]uilds/
+
+# Logs d'exécution Unity
 [Ll]ogs/
+
+# Captures mémoire (profiling)
 [Mm]emoryCaptures/
-.vscode/
-.idea/
 
-# Autogénérés par Unity ou IDE
-sysinfo.txt
-*.csproj
-*.unityproj
-*.sln
-*.suo
+# Rapports de crash
+[Cc]rashes/
+
+# Préférences utilisateur de l'éditeur (layout, fenêtres, historique)
+UserSettings/
+
+# ===========================
+# UNITY - Fichiers générés
+# ===========================
+
+# Fichiers système Unity
+*.stackdump
+*.VC.db
+*.VC.opendb
+*.VC.VC.opendb
 *.tmp
-*.user
-*.userprefs
-*.pidb
-*.booproj
-*.svd
+sysinfo.txt
+*.unityproj
+
+# Fichiers de debug
 *.pdb
+*.pdb.meta
 *.mdb
+*.mdb.meta
 
-# OS
-.DS_Store
-Thumbs.db
+# ===========================
+# IDE et éditeurs
+# ===========================
 
-# Python/ML-Agents
-__pycache__/
-*.pyc
-venv/
-.mlagents/
+# Visual Studio / Rider
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# ===========================
+# ML-AGENTS - Entraînement
+# ===========================
+
+# Résultats d'entraînement (TensorBoard, métriques)
 results/
-models/
-*.onnx
-
-# ML-Agents training
-*.tfrecord
-*.ckpt*
-*.log
 summaries/
-checkpoints/
+
+# Checkpoints pendant l'entraînement
+*.tfrecord
+*.ckpt
+*.ckpt.*
+checkpoint
+*.pt
+*.pth
+
+# Logs d'entraînement
+*.log
+trainer_config.yaml.bak
+
+# Cache ML-Agents
+.mlagents/
+
+# ===========================
+# ML-AGENTS - Modèles
+# ===========================
+
+# IMPORTANT: Ignorer les modèles .onnx générés automatiquement
+# Si vous voulez versionner un modèle final validé, utilisez:
+# git add -f Assets/IA_models/mon_modele_final.onnx
+
+# Modèles .onnx (décommentez si vous voulez TOUS les ignorer)
+# *.onnx
+
+# Ou ignorez seulement les modèles temporaires dans results/
+results/**/*.onnx
+summaries/**/*.nnmodel
+
+# ===========================
+# PYTHON - Environnement ML-Agents
+# ===========================
+
+# Environnements virtuels Python
+venv/
+env/
+ENV/
+.venv
+
+# Bytecode Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# Distribution Python
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# ===========================
+# SYSTÈME D'EXPLOITATION
+# ===========================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ===========================
+# ASSETS - Fichiers temporaires
+# ===========================
+
+# Autosaves
+*~.meta
+*.tmp.meta
+*.autosave
+
+# ===========================
+# DIVERS
+# ===========================
+
+# Fichiers de sauvegarde
+*.bak
+*.gho
+*.ori
+*.orig
+*.tmp
+
+# Archives
+*.7z
+*.rar
+*.zip
+*.tar
+*.gz
+
+# Captures d'écran temporaires (gardez celles importantes manuellement)
+screenshots/
+*.png.meta~
+
+# Fichiers de profiling
+*.prof
