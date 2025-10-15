@@ -9,7 +9,7 @@ public class CubeRandomSpawner : MonoBehaviour
     public float saufZoneX = 5f;
     public float saufZoneZ = 5f;
 
-    public float height = 0.7f;
+    public float height = -3f;
 
     // private Renderer rend;
     // private Color defaultMaterial;
@@ -95,17 +95,27 @@ public class CubeRandomSpawner : MonoBehaviour
     //         return isTouched;
     //     }
 
+    [System.Obsolete]
     public void MoveCubeToRandomPosition()
     {
+        var rb = cubeToMove.GetComponent<Rigidbody>();
+
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.Sleep();            // facultatif : garantit qu’il s’endort
+            rb.isKinematic = false; // ou détacher le joint si nécessaire
+        }
+
         Vector3 newPos;
         int s = 0;
-        float spawnHeight = height / 2f + 0.5f; // on le lève un peu au-dessus
 
         do
         {
             float randomX = Random.Range(-rangeX, rangeX);
             float randomZ = Random.Range(-rangeZ, rangeZ);
-            newPos = new Vector3(randomX, spawnHeight, randomZ);
+            newPos = new Vector3(randomX, height, randomZ);
             s++;
         } while (System.Math.Abs(newPos.x) < saufZoneX && System.Math.Abs(newPos.z) < saufZoneZ && s < 100);
 

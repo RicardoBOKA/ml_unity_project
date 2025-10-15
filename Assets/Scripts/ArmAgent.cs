@@ -24,6 +24,12 @@ public class ArmAgent : Agent
     private Color _defaultMaterial;
     private float timeTouchingPlane = 0f;
     private float maxTouchTime = 5f; // ou une autre valeur selon tes essais
+    private bool _wasHoldingBox = false; // track if we already rewarded the grab
+    [SerializeField] private float _maxLiftHeight = 1f; // hauteur maximale pour la récompense de levage
+    [SerializeField] private float _liftRewardScale = 0.05f; // facteur de récompense selon la hauteur
+    private float _holdingTimer = 0f;
+    private float _holdDurationToEnd = 4f;
+    private Vector3 _previousPincerCenter;
 
 
 
@@ -36,6 +42,8 @@ public class ArmAgent : Agent
         CurrentEpisode = 0;
         CumulativeReward = 0f;
         _defaultMaterial = _renderer.material.color;
+        _wasHoldingBox = false;
+        _holdingTimer = 0f;
     }
 
     public override void OnEpisodeBegin()
@@ -44,6 +52,8 @@ public class ArmAgent : Agent
         CurrentEpisode++;
         CumulativeReward = 0f;
         _defaultMaterial = _renderer.material.color;
+        _wasHoldingBox = false;
+        _holdingTimer = 0f;
 
         if (_grabDetectorLeft != null)
         {
@@ -61,6 +71,7 @@ public class ArmAgent : Agent
         // and not from the previous episode's state.
         Vector3 pincerCenter = (_armController.GetPincerPositions()[0] + _armController.GetPincerPositions()[1]) / 2f;
         _previousDistanceToCube = Vector3.Distance(pincerCenter, _goal.getPosition());
+        _previousPincerCenter = pincerCenter;
     }
 
     private void SpawnObjects()
@@ -165,20 +176,37 @@ public class ArmAgent : Agent
         // --- Pénalité pour chaque pas de temps (pour encourager l'agent à agir rapidement), il pourrait juste rien faire et attendre la fin de l'épisode
         AddReward(-2f / MaxStep);
         // --- Pénalité si contact avec le sol ou mur
-        // PlaneTuched();
-        PlaneTouchedProgressive();
+        // PlaneTouchedProgressive();
+        PlaneTouched();
 
         // ### RÉCOMPENSES
         // --- Récompense intermédiaire : se rapprocher du cube
         CenterPincerReward();
+        SmoothMovementPenalty();
+
         // --- Récompense si le cube est bien tenu et levé
         // TimeHoldingReward();
+
         // --- Récompense si le cube est attrapé
         // GoalReached();
-        // Si on touche le cube 
-        GoalTouched();
+        Goalreached();
+
+        // Terminate the episode if the cube gets too far from the arm
+        CheckCubeDistance();
 
         CumulativeReward = GetCumulativeReward();
+    }
+    private void SmoothMovementPenalty()
+    {
+        Vector3 currentCenter = (_armController.GetPincerPositions()[0] + _armController.GetPincerPositions()[1]) / 2f;
+        float movement = Vector3.Distance(currentCenter, _previousPincerCenter);
+
+        if (movement > 0.01f)
+        {
+            AddReward(-movement * 0.02f);
+        }
+
+        _previousPincerCenter = currentCenter;
     }
 
     private bool IsCubeTouched()
@@ -186,16 +214,61 @@ public class ArmAgent : Agent
         return (_grabDetectorLeft != null && _grabDetectorLeft.isTouchingCube()) ||
             (_grabDetectorRight != null && _grabDetectorRight.isTouchingCube());
     }
-    void GoalTouched() {
-        // Debug.Log("TEST DEHORS");
-        // Debug.Log($"grabdetector null ? : {_grabDetector == null}");
-        // Debug.Log("Droit TOUCHE ? : " + _grabDetectorLeft.isTouchingCube());
-        // Debug.Log("Gauche TOUCHE ? : " + _grabDetectorRight.isTouchingCube());
-        if (IsCubeTouched())
+    // void GoalTouched() {
+    //     // Debug.Log("TEST DEHORS");
+    //     // Debug.Log($"grabdetector null ? : {_grabDetector == null}");
+    //     // Debug.Log("Droit TOUCHE ? : " + _grabDetectorLeft.isTouchingCube());
+    //     // Debug.Log("Gauche TOUCHE ? : " + _grabDetectorRight.isTouchingCube());
+    //     if (IsCubeTouched())
+    //     {
+    //         Debug.Log("TEST DEDANS");
+    //         AddReward(15f);
+    //         EndEpisode();
+    //     }
+    // }
+
+    void Goalreached()
+    {
+        bool isTouching = IsCubeTouched();
+        bool isHolding = _armController.getIsHoldingBox();
+
+        if ((isTouching && !isHolding))
         {
-            Debug.Log("TEST DEDANS");
-            AddReward(15f);
-            EndEpisode();
+            Debug.Log("Touche le cube mais ne le tient pas");
+            AddReward(0.001f);
+        }
+        if (isHolding)
+        {
+            // Bonus unique lorsque le cube est attrapé pour la première fois
+            if (!_wasHoldingBox)
+            {
+                AddReward(1f);
+                _wasHoldingBox = true;
+            }
+
+            // Récompense continue pour garder le cube dans la pince
+            AddReward(0.002f);
+
+            // Récompense proportionnelle à la hauteur du cube (maximale à _maxLiftHeight)
+            float heightNormalized = Mathf.Clamp01(_goal.getPosition().y / _maxLiftHeight);
+            AddReward(heightNormalized * _liftRewardScale);
+
+            _holdingTimer += Time.deltaTime;
+            if (_holdingTimer >= _holdDurationToEnd)
+            {
+                EndEpisode();
+            }
+        }
+        if (_wasHoldingBox && !isHolding)
+        {
+            Debug.Log("Le cube a été lâché !");
+            AddReward(-0.5f);
+            _wasHoldingBox = false;
+            _holdingTimer = 0f;
+        }
+        else
+        {
+            _wasHoldingBox = false;
         }
     }
 
@@ -210,72 +283,72 @@ public class ArmAgent : Agent
         float distanceToCube = Vector3.Distance(pincerCenter, _goal.getPosition());
 
         // Vérifier si la distance a diminué par rapport à la précédente
-        if (Mathf.Abs(distanceToCube - _previousDistanceToCube) > tolerance) {
+        if (Mathf.Abs(distanceToCube - _previousDistanceToCube) > tolerance)
+        {
             if (distanceToCube < _previousDistanceToCube)
-            {   
+            {
                 // Si on se rapproche, on ajoute une récompense
                 // Debug.Log("RAPPROCHED : Distance to cube : " + distanceToCube);
                 float normalizedDistance = 1f - Mathf.Clamp01(distanceToCube / maxDist);
-                AddReward(normalizedDistance * 0.030f);
+                AddReward(normalizedDistance * 0.03f);
             }
-            else if (distanceToCube > _previousDistanceToCube) {
+            else if (distanceToCube > _previousDistanceToCube)
+            {
                 // Si on s'éloigne, on ajoute une pénalité
                 // Debug.Log("ELLOIGNED : Distance to cube : " + distanceToCube);
                 float normalizedDistance = 1f - Mathf.Clamp01(distanceToCube / maxDist);
                 AddReward(-normalizedDistance * 0.05f);
-            } 
+            }
             _previousDistanceToCube = distanceToCube;
         }
     }
-    public void TimeHoldingReward()
+    // public void PlaneTouchedProgressive()
+    // {
+    //     if (redPlaneOnArmContact.GetIsTouching())
+    //     {
+    //         timeTouchingPlane += Time.deltaTime;
+
+    //         // Petite pénalité continue
+    //         float penalty = -0.08f * timeTouchingPlane;
+    //         AddReward(penalty * Time.deltaTime);
+
+    //         if (timeTouchingPlane >= maxTouchTime)
+    //         {
+    //             AddReward(-1f); // ou autre pénalité finale
+    //             EndEpisode();
+    //         }
+    //     }
+    //     else
+    //     {
+    //         // AddReward(0.0005f * Time.deltaTime);
+    //         // Si plus en contact, on remet à zéro
+    //         timeTouchingPlane = 0f;
+    //     }
+    // }
+
+    public void PlaneTouched()
     {
-        // Récompense pour le temps de maintien du cube
-        if (_armController.getIsHoldingBox() && _goal.getPosition().y > -4f)
-        {
-            AddReward(0.05f); // maintenir l’objet en l'air
-        }
-    }
-    public void PlaneTuched()
-    {
-        // Pénalité si le bras touche le sol ou un mur
         if (redPlaneOnArmContact.GetIsTouching())
         {
-            AddReward(-0.5f);
+            AddReward(-0.5f); 
             EndEpisode();
         }
     }
-    public void PlaneTouchedProgressive()
+
+    private void CheckCubeDistance()
     {
-        if (redPlaneOnArmContact.GetIsTouching())
+        // Calculer la distance entre le centre du cube et le centre du plan (GameObject)
+        Vector3 planeCenter = redPlaneOnArmContact.transform.position;
+        float distance = Vector3.Distance(_goal.getPosition(), planeCenter);
+        // Debug.Log($"Distance entre le cube et le plan : {distance}");
+        if (distance > 8f)
         {
-            timeTouchingPlane += Time.deltaTime;
-
-            // Petite pénalité continue
-            float penalty = -0.08f * timeTouchingPlane;
-            AddReward(penalty * Time.deltaTime);
-
-            if (timeTouchingPlane >= maxTouchTime)
-            {
-                AddReward(-1f); // ou autre pénalité finale
-                EndEpisode();
-            }
+            AddReward(-1f);
+            EndEpisode();
         }
-        else
+        if (distance < 4f)
         {
-            // AddReward(0.0005f * Time.deltaTime);
-            // Si plus en contact, on remet à zéro
-            timeTouchingPlane = 0f;
-        }
-    }
-
-
-    public void GoalReached()
-    {
-        // Récompense si le cube est attrapé
-        if (_armController.getIsHoldingBox())
-        {
-            AddReward(1f);
-            Debug.Log("Goal Reached !");
+            AddReward(-1f);
             EndEpisode();
         }
     }

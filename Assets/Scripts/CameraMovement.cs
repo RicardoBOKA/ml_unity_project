@@ -5,6 +5,6 @@ public class CameraMovement : MonoBehaviour
 
     void LateUpdate()
     {
-        transform.RotateAround(target.position, Vector3.up, 20 * Time.deltaTime); // Rotate around the target
+        transform.RotateAround(target.position, Vector3.up, 10 * Time.deltaTime); // Rotate around the target
     }
 }
