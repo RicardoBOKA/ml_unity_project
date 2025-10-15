@@ -187,3 +187,12 @@ screenshots/
 
 # Fichiers de profiling
 *.prof
+
+# Fichiers .csproj Unity générés automatiquement
+Unity.*.csproj
+Unity.*.csproj.meta
+Unity.*.sln.meta
+
+# Garder seulement les fichiers essentiels
+!Assembly-CSharp*.csproj
+!ml_arm_physics.sln
